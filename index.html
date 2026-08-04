@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advertencia</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body, html {
+            width: 100%;
+            height: 100%;
+            background-color: #0b0b0b;
+            color: #ff3333;
+            font-family: 'Courier New', Courier, monospace;
+            overflow: hidden;
+        }
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: #0b0b0b;
+            z-index: 10;
+            padding: 20px;
+            text-align: center;
+        }
+        .screen.active {
+            display: flex;
+        }
+        #welcome-screen {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #000;
+            z-index: 100;
+        }
+        .btn-enter {
+            background-color: #ff0000;
+            color: #ffffff;
+            border: none;
+            padding: 18px 40px;
+            font-size: 24px;
+            font-weight: bold;
+            font-family: 'Courier New', Courier, monospace;
+            cursor: pointer;
+            border-radius: 5px;
+            box-shadow: 0 0 15px rgba(255, 0, 0, 0.6);
+            transition: background 0.2s;
+        }
+        .btn-enter:hover {
+            background-color: #cc0000;
+        }
+        .warning-text {
+            font-size: 2.5rem;
+            font-weight: bold;
+            text-shadow: 0 0 10px rgba(255, 0, 0, 0.8);
+            letter-spacing: 2px;
+            line-height: 1.4;
+            max-width: 90%;
+        }
+        .screen-counter {
+            position: absolute;
+            bottom: 20px;
+            font-size: 1.2rem;
+            color: #ff5555;
+            letter-spacing: 1px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Pantalla de Bienvenida con Botón Entrar -->
+    <div id="welcome-screen" class="screen active">
+        <button id="btn-entrar" class="btn-enter" onclick="iniciarExperiencia()">ENTRAR</button>
+    </div>
+
+    <!-- Contenedor donde se inyectarán las 50 pantallas -->
+    <div id="screens-container"></div>
+
+    <script>
+        const totalScreens = 50;
+        let currentScreen = 0; // 0 = bienvenida, 50 a 1 = pantallas de advertencia
+
+        function getMessage(num) {
+            if (num >= 40 && num <= 50) {
+                return "Estás siendo jaqueado.";
+            } else if (num >= 30 && num <= 39) {
+                return "no intentes nada, muy pronto terminara.";
+            } else if (num >= 20 && num <= 29) {
+                return "no te alteres.";
+            } else if (num >= 5 && num <= 19) {
+                return "ya falta poco.";
+            } else if (num >= 1 && num <= 4) {
+                return "listo.";
+            }
+            return "";
+        }
+
+        // Crear dinámicamente las 50 pantallas al cargar la página (orden descendente de 50 a 1)
+        const container = document.getElementById('screens-container');
+        for (let i = 50; i >= 1; i--) {
+            const div = document.createElement('div');
+            div.className = 'screen';
+            div.id = 'screen-' + i;
+            
+            const textDiv = document.createElement('div');
+            textDiv.className = 'warning-text';
+            textDiv.innerText = getMessage(i);
+            
+            const counterDiv = document.createElement('div');
+            counterDiv.className = 'screen-counter';
+            counterDiv.innerText = `pantalla ${i}`;
+
+            div.appendChild(textDiv);
+            div.appendChild(counterDiv);
+            container.appendChild(div);
+        }
+
+        function iniciarExperiencia() {
+            // 0. Solicitar pantalla completa (Fullscreen API)
+            const elem = document.documentElement;
+            if (elem.requestFullscreen) {
+                elem.requestFullscreen().catch(err => {
+                    // Algunos navegadores móviles pueden requerir interacción directa, 
+                    // si falla se continúa sin interrumpir la experiencia.
+                    console.log("Fullscreen no permitido o bloqueado:", err);
+                });
+            } else if (elem.webkitRequestFullscreen) { /* Safari */
+                elem.webkitRequestFullscreen();
+            } else if (elem.msRequestFullscreen) { /* IE11 */
+                elem.msRequestFullscreen();
+            }
+
+            // 1. Ocultar y eliminar el botón de bienvenida
+            const welcome = document.getElementById('welcome-screen');
+            if (welcome) {
+                welcome.remove();
+            }
+
+            // 2. Establecer el estado inicial en la pantalla 50
+            currentScreen = 50;
+            
+            // 3. Configurar el historial de navegación para retroceder desde 50 hasta 1
+            history.replaceState({ screen: 50 }, "", "");
+            for (let i = 49; i >= 1; i--) {
+                history.pushState({ screen: i }, "", "");
+            }
+            // Estado extra para salir de la web al presionar retroceso en la pantalla 1
+            history.pushState({ screen: 0 }, "", "");
+            history.back(); // Posicionar el puntero en la pantalla 50
+            
+            actualizarVisualizacion();
+        }
+
+        // Manejar el evento de retroceso del teléfono / navegador (popstate)
+        window.addEventListener('popstate', function(event) {
+            if (event.state && typeof event.state.screen !== 'undefined') {
+                currentScreen = event.state.screen;
+                actualizarVisualizacion();
+            }
+        });
+
+        function actualizarVisualizacion() {
+            // Ocultar todas las pantallas de advertencia
+            for (let i = 1; i <= totalScreens; i++) {
+                const s = document.getElementById('screen-' + i);
+                if (s) {
+                    s.classList.remove('active');
+                }
+            }
+
+            // Mostrar la pantalla correspondiente si está entre 1 y 50
+            if (currentScreen >= 1 && currentScreen <= 50) {
+                const targetScreen = document.getElementById('screen-' + currentScreen);
+                if (targetScreen) {
+                    targetScreen.classList.add('active');
+                }
+            }
+        }
+    </script>
+</body>
+</html>
